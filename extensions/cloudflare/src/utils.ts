@@ -31,7 +31,7 @@ function getSiteStatusIcon(status: ZoneStatus): Icon {
     case 'deleted':
     case 'deactivated':
     case 'read only':
-      return Icon.XmarkCircle;
+      return Icon.XMarkCircle;
   }
 }
 
@@ -42,7 +42,7 @@ function getDeploymentStatusIcon(status: DeploymentStatus): Icon {
     case 'success':
       return Icon.Checkmark;
     case 'failure':
-      return Icon.XmarkCircle;
+      return Icon.XMarkCircle;
   }
 }
 
@@ -62,7 +62,7 @@ function getMemberStatusIcon(status: MemberStatus): Icon {
     case 'accepted':
       return Icon.Checkmark;
     case 'rejected':
-      return Icon.XmarkCircle;
+      return Icon.XMarkCircle;
   }
 }
 

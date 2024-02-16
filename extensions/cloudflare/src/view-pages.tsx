@@ -63,7 +63,7 @@ function Command() {
                   actions={
                     <ActionPanel>
                       <Action.Push
-                        icon={Icon.TextDocument}
+                        icon={Icon.BlankDocument}
                         title="Show Details"
                         target={
                           <PageView accountId={accountId} name={page.name} />
@@ -251,7 +251,7 @@ function DeploymentListView(props: DeploymentListProps) {
           actions={
             <ActionPanel>
               <Action.Push
-                icon={Icon.TextDocument}
+                icon={Icon.BlankDocument}
                 title="Show Details"
                 target={
                   <DeploymentView
