@@ -55,6 +55,7 @@ type EntriesParams = {
   starred?: true;
   page?: number;
   feedId?: number;
+  per_page?: number;
 };
 
 export function useEntries({ feedId, ...params }: EntriesParams = {}) {

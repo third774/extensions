@@ -12,13 +12,20 @@ import {
   updateCommandMetadata,
 } from "@raycast/api";
 import { useEffect } from "react";
-import { Entry, markAsRead, useEntries, useSubscriptionMap } from "./utils/api";
+import {
+  Entry,
+  markAsRead,
+  useEntries,
+  useSubscriptionMap,
+  useUnreadEntriesIds,
+} from "./utils/api";
 
 export default function MenuCommand(): JSX.Element {
   const { showCountInMenuBar } =
     getPreferenceValues<Preferences.UnreadMenuBar>();
-  const entries = useEntries({ read: false });
+  const entries = useEntries({ read: false, per_page: 30 });
   const subscriptionMap = useSubscriptionMap();
+  const { data: unreadEntryIds } = useUnreadEntriesIds();
 
   useEffect(() => {
     (async () => {
@@ -28,28 +35,7 @@ export default function MenuCommand(): JSX.Element {
     })();
   }, []);
 
-  const entriesGroupedByFeedId =
-    entries.data?.reduce<Record<number, Entry[]>>((acc, entry) => {
-      if (acc[entry.feed_id]) {
-        acc[entry.feed_id].push(entry);
-      } else {
-        acc[entry.feed_id] = [entry];
-      }
-      return acc;
-    }, {}) ?? {};
-
-  const groupedEntries = Object.entries(entriesGroupedByFeedId)
-    // Sometimes when adding or removing subscriptions
-    // the subscriptionMap might not contain the subscription
-    // for the entry returned.
-    .filter(([key]) => subscriptionMap.data[+key])
-    .sort(([aKey], [bKey]) =>
-      subscriptionMap.data[+aKey].title.localeCompare(
-        subscriptionMap.data[+bKey].title,
-      ),
-    );
-
-  const unreadCount = entries.data ? entries.data.length : 0;
+  const unreadCount = unreadEntryIds?.length ?? 0;
 
   const handleMarkAsRead = async (entry: Entry) => {
     try {
@@ -67,49 +53,16 @@ export default function MenuCommand(): JSX.Element {
       title={showCountInMenuBar ? unreadCount.toString() : undefined}
       isLoading={entries.isLoading || subscriptionMap.isLoading}
     >
-      <MenuBarExtra.Item
-        title="Manage Subscriptions"
-        onAction={() =>
-          launchCommand({
-            name: "subscriptions",
-            type: LaunchType.UserInitiated,
-          })
-        }
-      />
-      {unreadCount === 0 && <MenuBarExtra.Section title="No unread items" />}
-      {groupedEntries.map(([feedId, groupedEntries]) => {
-        return (
-          <MenuBarExtra.Section
-            key={feedId}
-            title={subscriptionMap.data?.[+feedId]?.title ?? "Unknown Feed"}
-          >
-            {groupedEntries.map((entry) => {
-              let title = entry.title ?? entry.summary;
-              if (title.length > 60) {
-                title = title.substring(0, 60) + "...";
-              }
-              return (
-                <MenuBarExtra.Item
-                  key={entry.id}
-                  title={title}
-                  icon={Icon.Globe}
-                  onAction={() => open(entry.url)}
-                  alternate={
-                    <MenuBarExtra.Item
-                      icon={Icon.Check}
-                      title={"Mark as Read: " + title}
-                      onAction={async () => {
-                        await entries.mutate(handleMarkAsRead(entry));
-                      }}
-                    />
-                  }
-                />
-              );
-            })}
-          </MenuBarExtra.Section>
-        );
-      })}
       <MenuBarExtra.Section>
+        <MenuBarExtra.Item
+          title="Manage Subscriptions"
+          onAction={() =>
+            launchCommand({
+              name: "subscriptions",
+              type: LaunchType.UserInitiated,
+            })
+          }
+        />
         <MenuBarExtra.Item
           title="Configure Command"
           icon={Icon.Gear}
@@ -124,6 +77,39 @@ export default function MenuCommand(): JSX.Element {
           }
         />
       </MenuBarExtra.Section>
+      <MenuBarExtra.Section>
+        {unreadCount === 0 && <MenuBarExtra.Section title="No unread items" />}
+        {entries.data?.map((entry) => (
+          <MenuBarExtra.Item
+            key={entry.id}
+            title={entry.title ?? "(no title)"}
+            subtitle={
+              subscriptionMap.data?.[entry.feed_id]?.title ?? "Unknown Feed"
+            }
+            icon={Icon.Globe}
+            onAction={() => open(entry.url)}
+            alternate={
+              <MenuBarExtra.Item
+                icon={Icon.Check}
+                title={"Mark as Read: " + entry.title}
+                onAction={async () => {
+                  await entries.mutate(handleMarkAsRead(entry));
+                }}
+              />
+            }
+          />
+        ))}
+      </MenuBarExtra.Section>
+      <MenuBarExtra.Item
+        title="View More"
+        icon={Icon.List}
+        onAction={() => {
+          launchCommand({
+            name: "all-feeds",
+            type: LaunchType.UserInitiated,
+          });
+        }}
+      />
     </MenuBarExtra>
   );
 }
