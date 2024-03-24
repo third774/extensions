@@ -76,7 +76,7 @@ export function EntryList(props: EntryListProps) {
         <List.EmptyView icon={Icon.CheckRosette} title="No content!" />
       )}
 
-      <List.Section title={`Unread (${unreadEntries.data?.length ?? 0})`}>
+      <List.Section title={`Unread (${unreadEntriesSet.size})`}>
         {unreadEntries.data?.length === 0 && (
           <List.Item
             icon={Icon.Tray}
