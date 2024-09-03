@@ -87,9 +87,8 @@ export default function MenuCommand(): JSX.Element {
                   <MenuBarExtra.Item
                     icon={Icon.Check}
                     title={entry.title ?? "(no title)"}
-                    subtitle={"Mark as Read and Open"}
+                    subtitle={"Mark as Read"}
                     onAction={async () => {
-                      open(entry.url);
                       await unreadEntryIds.mutate(handleMarkAsRead(entry));
                     }}
                   />

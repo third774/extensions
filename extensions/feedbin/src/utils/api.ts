@@ -1,9 +1,9 @@
 import { getPreferenceValues } from "@raycast/api";
-import { showFailureToast } from "@raycast/utils";
+import { showFailureToast, useFetch } from "@raycast/utils";
 import fetch from "node-fetch";
-import { useEffect, useMemo } from "react";
+import { NodeHtmlMarkdown } from "node-html-markdown";
+import { useEffect, useMemo, useRef } from "react";
 import { toURLSearchParams } from "./toURLSearchParams";
-import { useFetchWithEtag } from "./useFetchEtag";
 
 const API_ROOT = "https://api.feedbin.com";
 
@@ -58,15 +58,59 @@ type EntriesParams = {
   per_page?: number;
 };
 
-export function useEntries({ feedId, ...params }: EntriesParams = {}) {
-  const searchParams = toURLSearchParams(params);
-  const { error, revalidate, ...rest } = useFetchWithEtag<Entry[]>(
-    feedId
-      ? `${API_ROOT}/v2/feeds/${feedId}/entries.json?${searchParams}`
-      : `${API_ROOT}/v2/entries.json?${searchParams}`,
+export function useEntries({
+  feedId,
+  per_page = 100,
+  ...params
+}: EntriesParams = {}) {
+  const highestPageRef = useRef(0);
+
+  const { error, revalidate, ...rest } = useFetch(
+    (options) => {
+      const page = options.page + 1;
+      if (page > highestPageRef.current) {
+        highestPageRef.current = page;
+      }
+      const searchParams = toURLSearchParams({
+        ...params,
+        per_page,
+        page,
+      });
+      const key = feedId
+        ? `${API_ROOT}/v2/feeds/${feedId}/entries.json?${searchParams}`
+        : `${API_ROOT}/v2/entries.json?${searchParams}`;
+
+      return key;
+    },
     {
-      method: "GET",
+      keepPreviousData: true,
       headers: getHeaders(),
+      initialData: [],
+      parseResponse: async (res) => {
+        let recordCount = Number(res.headers.get("X-Feedbin-Record-Count"));
+        if (isNaN(recordCount)) {
+          recordCount = 0;
+        }
+        // by transforming the content to markdown here, we can
+        // keep paginated memory usage lower allowing for more
+        // pages of entries to be loaded
+        const data = ((await res.json()) as Entry[]).map(
+          ({ content, ...rest }) => ({
+            content:
+              content !== null ? NodeHtmlMarkdown.translate(content) : null,
+            ...rest,
+          }),
+        );
+        const hasMore = highestPageRef.current * per_page < recordCount;
+
+        return {
+          data,
+          hasMore,
+        };
+      },
+      mapResult(result) {
+        return result;
+      },
     },
   );
 
@@ -92,7 +136,7 @@ export function useEntries({ feedId, ...params }: EntriesParams = {}) {
 }
 
 export function useSubscriptions() {
-  const { error, revalidate, ...rest } = useFetchWithEtag<Subscription[]>(
+  const { error, revalidate, ...rest } = useFetch<Subscription[]>(
     `${API_ROOT}/v2/subscriptions.json?`,
     {
       method: "GET",
@@ -180,7 +224,7 @@ export function deleteStarredEntries(...entryIds: number[]) {
 }
 
 export function useStarredEntriesIds() {
-  return useFetchWithEtag<number[]>(`${API_ROOT}/v2/starred_entries.json`, {
+  return useFetch<number[]>(`${API_ROOT}/v2/starred_entries.json`, {
     method: "GET",
     headers: getHeaders(),
   });
@@ -191,7 +235,7 @@ export function useStarredEntries(params: EntriesParams = {}) {
 }
 
 export function useFeedEntries(id: number) {
-  return useFetchWithEtag<Entry[]>(`${API_ROOT}/v2/feeds/${id}/entries.json`, {
+  return useFetch<Entry[]>(`${API_ROOT}/v2/feeds/${id}/entries.json`, {
     method: "GET",
     headers: getHeaders(),
   });
@@ -208,7 +252,7 @@ export function unsubscribe(subscriptionId: number) {
 }
 
 export function useUnreadEntriesIds() {
-  return useFetchWithEtag<number[]>(`${API_ROOT}/v2/unread_entries.json`, {
+  return useFetch<number[]>(`${API_ROOT}/v2/unread_entries.json`, {
     method: "GET",
     headers: getHeaders(),
   });

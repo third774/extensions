@@ -1,0 +1,2 @@
+- When filtering down to an individual feed, need to update the unread count
+

@@ -1,4 +1,5 @@
-import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { ActionPanel, Icon, List } from "@raycast/api";
+import { useState } from "react";
 import { useFeedbinApiContext } from "../utils/FeedbinApiContext";
 import { Entry } from "../utils/api";
 import { getIcon } from "../utils/getIcon";
@@ -21,32 +22,45 @@ export interface EntryListProps {
 export function EntryList(props: EntryListProps) {
   const {
     isLoading,
-    unreadEntriesSet,
+    entries: allEntries,
     unreadEntries,
-    entries,
     filterFeedId,
     setFilterFeedId,
     subscriptions,
+    unreadEntriesIds,
   } = useFeedbinApiContext();
 
+  const [showUnread, setShowUnread] = useState(false);
+  const entries = showUnread ? unreadEntries : allEntries;
   const readLaterSubscription = subscriptions.data?.find((sub) =>
     isPagesSubscription(sub),
   );
 
   return (
     <List
-      navigationTitle={props.navigationTitle}
+      pagination={entries.pagination}
+      navigationTitle={
+        props.navigationTitle ??
+        `View Feeds (${unreadEntriesIds.data?.length.toString()} unread)`
+      }
       searchBarAccessory={
         props.navigationTitle ? undefined : (
           <List.Dropdown
             defaultValue={filterFeedId?.toString() ?? "all"}
             tooltip="Option to prioritize unread entries"
             onChange={(value) => {
-              setFilterFeedId(value === "all" ? undefined : Number(value));
+              if (value === "unread") {
+                setFilterFeedId(undefined);
+                setShowUnread(true);
+              } else {
+                setFilterFeedId(value === "all" ? undefined : Number(value));
+                setShowUnread(false);
+              }
             }}
           >
             <List.Dropdown.Section>
               <List.Dropdown.Item title={"All feeds"} value={"all"} />
+              <List.Dropdown.Item title={"Unread"} value={"unread"} />
               {readLaterSubscription && (
                 <List.Dropdown.Item
                   title={"Read Later"}
@@ -76,33 +90,7 @@ export function EntryList(props: EntryListProps) {
         <List.EmptyView icon={Icon.CheckRosette} title="No content!" />
       )}
 
-      <List.Section title={`Unread (${unreadEntriesSet.size})`}>
-        {unreadEntries.data?.length === 0 && (
-          <List.Item
-            icon={Icon.Tray}
-            actions={
-              <ActionPanel>
-                <Action
-                  title="Refresh"
-                  icon={Icon.RotateClockwise}
-                  onAction={() => unreadEntries.revalidate()}
-                />
-              </ActionPanel>
-            }
-            title="No Unread Items"
-          />
-        )}
-        {unreadEntries.data?.map((entry) => (
-          <ListItem key={entry.id} entry={entry} isUnread />
-        ))}
-      </List.Section>
-
-      <List.Section title="Read">
-        {unreadEntriesSet &&
-          entries.data
-            ?.filter((entry) => !unreadEntriesSet.has(entry.id))
-            .map((entry) => <ListItem key={entry.id} entry={entry} />)}
-      </List.Section>
+      {entries.data?.map((entry) => <ListItem key={entry.id} entry={entry} />)}
     </List>
   );
 }
